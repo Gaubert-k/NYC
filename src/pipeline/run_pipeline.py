@@ -25,6 +25,42 @@ from src.lake.run_lake import run_lake as execute_lake_analytics
 from src.transform.silver_cleaner import transform_silver
 
 
+def _print_startup_config(config: dict, args: argparse.Namespace) -> None:
+    spark = config.get("spark", {})
+    filtres = []
+    if config.get("sample_year"):
+        filtres.append(f"annee={config['sample_year']}")
+    if config.get("sample_month"):
+        filtres.append(f"mois={config['sample_month']}")
+    if config.get("sample_mode"):
+        filtres.append("sample_mode=ON")
+    if config.get("light_mode"):
+        filtres.append("light_mode=ON")
+    if args.vehicle_type:
+        filtres.append(f"vehicle={args.vehicle_type}")
+
+    print("=" * 60)
+    print("  NYC TAXI LAKEHOUSE - CONFIGURATION")
+    print("=" * 60)
+    print(f"  Couche          : {args.layer}")
+    print(f"  Mode Docker     : {config.get('docker_mode')}")
+    print(f"  Stockage        : {config.get('storage_backend')}")
+    print(f"  HDFS            : {config.get('hdfs_uri')}")
+    print(f"  Filtres         : {', '.join(filtres) if filtres else 'aucun (dataset complet)'}")
+    print(f"  Types vehicules : {', '.join(config.get('vehicle_types', []))}")
+    print("  --- Spark ---")
+    print(f"  Master          : {spark.get('master')}")
+    print(f"  Driver memory   : {spark.get('driver_memory')}")
+    print(f"  Executor memory : {spark.get('executor_memory')}")
+    print(f"  Executor cores  : {spark.get('executor_cores', 2)}")
+    print(f"  Executors       : {config.get('spark_num_executors')}")
+    print(f"  Shuffle parts   : {spark.get('shuffle_partitions')}")
+    print("  --- MongoDB ---")
+    print(f"  URI             : {config.get('mongo_uri')}")
+    print(f"  Database        : {config.get('mongo_database')}")
+    print("=" * 60)
+
+
 def run_bronze(spark, config, metrics, vehicle_type=None):
     ingest_reference(spark, config, metrics)
     ingest_weather(spark, config, metrics)
@@ -42,9 +78,7 @@ def run_silver(spark, config, metrics, vehicle_type=None):
 
 def run_gold(spark, config, metrics):
     kpis = compute_kpis(spark, config, metrics)
-    loaded = load_kpis_to_mongo(kpis, config, metrics)
-    if not loaded and config.get("gold_parquet_fallback"):
-        print("MongoDB indisponible — KPIs sauvegardés en Parquet dans data/gold/")
+    load_kpis_to_mongo(kpis, config, metrics)
     gc.collect()
 
 
@@ -55,7 +89,6 @@ def run_lake_layer(spark, config, metrics):
 
     execute_lake_analytics(spark, config, metrics)
     if load_lake_to_mongo(spark, config, metrics):
-        print("Lake analytics charges dans MongoDB")
         prom_path = Path(config.get("prometheus_export_path", "logs/pipeline_metrics.prom")).parent / "kpi_metrics.prom"
         export_kpi_prometheus(config["mongo_uri"], config["mongo_database"], prom_path)
     gc.collect()
@@ -107,27 +140,28 @@ def main():
         config["max_months_per_type"] = 1
 
     metrics = MetricsTracker(config["metrics_log_path"], config["prometheus_export_path"])
+    MetricsTracker.rebuild_prometheus_from_jsonl(
+        config["metrics_log_path"], config["prometheus_export_path"]
+    )
+    _print_startup_config(config, args)
     spark = create_spark_session(config, num_executors=args.num_executors)
 
     try:
         if args.layer in ("bronze", "all"):
-            print("=== Bronze ===")
             run_bronze(spark, config, metrics, args.vehicle_type)
 
         if args.layer in ("silver", "all"):
-            print("=== Silver ===")
             run_silver(spark, config, metrics, args.vehicle_type)
 
         if args.layer in ("gold", "all"):
-            print("=== Gold (warehouse KPIs) ===")
             run_gold(spark, config, metrics)
 
         if args.layer in ("lake", "all"):
-            print("=== Lake (ML, géo, exploration) ===")
             run_lake_layer(spark, config, metrics)
-
-        print(f"Métriques : {config['metrics_log_path']}")
     finally:
+        MetricsTracker.rebuild_prometheus_from_jsonl(
+            config["metrics_log_path"], config["prometheus_export_path"]
+        )
         spark.stop()
 
 

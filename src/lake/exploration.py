@@ -32,7 +32,6 @@ def run_schema_exploration(spark: SparkSession, config: dict[str, Any], metrics:
                         "file": f.name,
                         "columns": df.columns,
                         "column_count": len(df.columns),
-                        "row_count": df.count() if not config.get("light_mode") else None,
                     }
                 )
             all_cols = set()
@@ -43,7 +42,7 @@ def run_schema_exploration(spark: SparkSession, config: dict[str, Any], metrics:
                 "union_columns": sorted(all_cols),
                 "per_file": schemas,
             }
-            metric.rows_read += sum(s["row_count"] or 0 for s in schemas)
+            metric.rows_read += len(schemas)
 
         out_dir = ensure_local_dir(config, "lake", "exploration")
         (out_dir / "schema_drift_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")

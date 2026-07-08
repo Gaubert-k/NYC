@@ -126,9 +126,9 @@ clean-volumes: down
 
 	@echo "Suppression docker/volumes/ (HDFS, Mongo, Grafana)..."
 
-	rm -rf docker/volumes/hdfs_datanode docker/volumes/hdfs_namenode docker/volumes/mongo docker/volumes/prometheus docker/volumes/grafana docker/volumes/spark-events
+	rm -rf docker/volumes/hdfs_datanode docker/volumes/hdfs_namenode docker/volumes/mongo docker/volumes/prometheus docker/volumes/grafana docker/volumes/spark-events docker/volumes/spark-shuffle
 
-	mkdir -p docker/volumes/hdfs_datanode docker/volumes/hdfs_namenode docker/volumes/mongo docker/volumes/prometheus docker/volumes/grafana docker/volumes/spark-events
+	mkdir -p docker/volumes/hdfs_datanode docker/volumes/hdfs_namenode docker/volumes/mongo docker/volumes/prometheus docker/volumes/grafana docker/volumes/spark-events docker/volumes/spark-shuffle
 
 
 

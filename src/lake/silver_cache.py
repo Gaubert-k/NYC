@@ -16,10 +16,8 @@ def load_lake_trips(spark: SparkSession, config: dict[str, Any]) -> tuple[DataFr
     trips = read_silver_trips(spark, config)
     if config.get("light_mode"):
         trips = trips.filter(F.col("vehicle_type") == "green")
-    trips = trips.persist(StorageLevel.MEMORY_AND_DISK)
-    row_count = trips.count()
-    print(f"  -> Silver cache Lake: {row_count:,} lignes (1 lecture)")
-    return trips, row_count
+    trips = trips.persist(StorageLevel.DISK_ONLY)
+    return trips, 0
 
 
 def release_lake_trips(trips: DataFrame) -> None:

@@ -5,6 +5,7 @@
   "graphTooltip": 1,
   "id": null,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -15,11 +16,12 @@
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Temps total de calcul des 12 KPIs warehouse",
+      "description": "Somme des durees de toutes les etapes (derniere valeur connue par etape)",
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 120000 }, { "color": "red", "value": 300000 }] },
+          "decimals": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 1800000 }, { "color": "red", "value": 3600000 }] },
           "unit": "ms"
         },
         "overrides": []
@@ -27,78 +29,94 @@
       "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
       "id": 1,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "title": "Duree couche Gold",
+      "title": "Duree totale pipeline",
       "type": "stat",
-      "targets": [{ "expr": "pipeline_duration_ms{layer=\"gold\", operation=\"compute_kpis\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(pipeline_duration_ms)", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Nombre de documents KPI ecrits dans MongoDB",
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "short" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "decimals": 0, "unit": "ms" }, "overrides": [] },
       "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
       "id": 2,
-      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "title": "Lignes KPI ecrites",
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Duree couche Gold",
       "type": "stat",
-      "targets": [{ "expr": "pipeline_rows_written{layer=\"gold\", operation=\"mongo_load\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(pipeline_duration_ms{layer=\"gold\"})", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Lignes lues depuis Silver pour calculer les KPIs",
-      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "decimals": 0, "unit": "ms" }, "overrides": [] },
       "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
       "id": 3,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "title": "Lignes Silver lues (Gold)",
+      "title": "Duree couche Lake",
       "type": "stat",
-      "targets": [{ "expr": "pipeline_rows_read{layer=\"gold\", operation=\"compute_kpis\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "sum(pipeline_duration_ms{layer=\"lake\"})", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Collections kpi_* chargees dans MongoDB",
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
       "id": 4,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Collections KPI MongoDB",
       "type": "stat",
-      "targets": [{ "expr": "mongo_kpi_collections", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "mongo_kpi_collections", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
       "id": 101,
-      "title": "Performance par couche (Bronze / Silver / Gold / Lake)",
+      "title": "Performance par etape (instantane — pas d'historique)",
       "type": "row"
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Duree de chaque etape du pipeline en millisecondes",
-      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "unit": "ms" }, "overrides": [] },
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 7 },
+      "description": "Duree de chaque etape en millisecondes. Les metriques viennent du fichier textfile Prometheus (derniere valeur par etape).",
+      "fieldConfig": { "defaults": { "color": { "mode": "palette-classic" }, "decimals": 0, "unit": "ms" }, "overrides": [] },
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 7 },
       "id": 5,
-      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
+      "options": { "displayMode": "gradient", "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Duree par operation",
-      "type": "timeseries",
-      "targets": [{ "expr": "pipeline_duration_ms", "legendFormat": "{{layer}} — {{operation}}", "refId": "A" }]
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "pipeline_duration_ms", "instant": true, "legendFormat": "{{layer}} / {{operation}}", "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "description": "Volume de donnees traitees a chaque etape",
+      "description": "Lignes ecrites par etape (0 masque visuellement les etapes sans ecriture)",
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 7 },
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 7 },
       "id": 6,
-      "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi" } },
-      "title": "Lignes lues / ecrites",
-      "type": "timeseries",
-      "targets": [
-        { "expr": "pipeline_rows_read", "legendFormat": "lu — {{layer}}/{{operation}}", "refId": "A" },
-        { "expr": "pipeline_rows_written", "legendFormat": "ecrit — {{layer}}/{{operation}}", "refId": "B" }
-      ]
+      "options": { "displayMode": "gradient", "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
+      "title": "Lignes ecrites par operation",
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "pipeline_rows_written > 0", "instant": true, "legendFormat": "{{layer}} / {{operation}}", "range": false, "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Tableau recapitulatif des metriques pipeline",
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "cellOptions": { "type": "auto" }, "inspect": false }, "decimals": 0 },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Value" }, "properties": [{ "id": "displayName", "value": "Duree (ms)" }] },
+          { "matcher": { "id": "byName", "options": "layer" }, "properties": [{ "id": "custom.width", "value": 90 }] },
+          { "matcher": { "id": "byName", "options": "operation" }, "properties": [{ "id": "custom.width", "value": 220 }] }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 19 },
+      "id": 10,
+      "options": { "cellHeight": "sm", "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false }, "showHeader": true, "sortBy": [{ "desc": true, "displayName": "Duree (ms)" }] },
+      "title": "Detail par etape",
+      "transformations": [
+        { "id": "labelsToFields", "options": { "mode": "columns", "valueLabel": "layer" } },
+        { "id": "organize", "options": { "excludeByName": { "Time": true, "__name__": true, "status": true }, "indexByName": { "layer": 0, "operation": 1, "Value": 2 }, "renameByName": {} } }
+      ],
+      "type": "table",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "pipeline_duration_ms", "format": "table", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 },
       "id": 102,
       "title": "Qualite des donnees (couche Silver)",
       "type": "row"
@@ -106,39 +124,40 @@
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "max": 1, "min": 0, "unit": "percentunit" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 17 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 30 },
       "id": 7,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+      "options": { "displayMode": "gradient", "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Taux de valeurs nulles",
-      "type": "timeseries",
-      "targets": [{ "expr": "pipeline_null_rate{layer=\"silver\"}", "legendFormat": "{{operation}}", "refId": "A" }]
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "pipeline_null_rate{layer=\"silver\"} > 0", "instant": true, "legendFormat": "{{operation}}", "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 17 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 30 },
       "id": 8,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+      "options": { "displayMode": "gradient", "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Doublons supprimes",
-      "type": "timeseries",
-      "targets": [{ "expr": "pipeline_duplicates_removed", "legendFormat": "{{layer}} — {{operation}}", "refId": "A" }]
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "pipeline_duplicates_removed{layer=\"silver\"} > 0", "instant": true, "legendFormat": "{{operation}}", "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 17 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 30 },
       "id": 9,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true } },
+      "options": { "displayMode": "gradient", "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Enregistrements invalides",
-      "type": "timeseries",
-      "targets": [{ "expr": "pipeline_invalid_records", "legendFormat": "{{layer}} — {{operation}}", "refId": "A" }]
+      "type": "bargauge",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "pipeline_invalid_records{layer=\"silver\"} > 0", "instant": true, "legendFormat": "{{operation}}", "range": false, "refId": "A" }]
     }
   ],
+  "refresh": "30s",
   "schemaVersion": 39,
   "tags": ["nyc-taxi", "pipeline", "ops"],
   "templating": { "list": [] },
-  "time": { "from": "now-24h", "to": "now" },
+  "time": { "from": "now-15m", "to": "now" },
   "title": "01 — Pipeline (technique)",
   "uid": "nyc-pipeline-ops",
-  "version": 1
+  "version": 2
 }

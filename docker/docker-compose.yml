@@ -11,6 +11,7 @@ x-spark-common: &spark-common
     - ./spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf:ro
     - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
     - ./volumes/spark-events:/spark-events
+    - ./volumes/spark-shuffle:/spark-shuffle
   environment: &spark-env
     SPARK_USER: spark
     PYTHONPATH: /app

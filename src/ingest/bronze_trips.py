@@ -63,7 +63,6 @@ def ingest_trips(
             for file_path in files:
                 year_month = _extract_year_month(file_path.name)
                 df = spark.read.parquet(file_path.as_uri())
-                metric.rows_read += df.count()
 
                 bronze_df = (
                     df.withColumn("_ingestion_ts", F.lit(datetime.now(timezone.utc)))
@@ -76,7 +75,6 @@ def ingest_trips(
                     config, "bronze", "trips", f"vehicle_type={vtype}", f"year_month={year_month}"
                 )
                 bronze_df.write.mode("overwrite").parquet(output)
-                metric.rows_written += bronze_df.count()
 
 
 def read_bronze_trips(spark: SparkSession, config: dict[str, Any], vehicle_type: str | None = None) -> DataFrame:

@@ -81,12 +81,8 @@ def run_anomalies(
             trips = trips.filter(F.col("vehicle_type") == "green")
 
     with metrics.track("lake", "anomaly_detection") as metric:
-        total_rows = 0 if trips.is_cached else trips.count()
-        metric.rows_read = total_rows
-
-        # Full run : echantillonner pour eviter shuffle 300M+ lignes / saturation disque
         sample_fraction = lake_cfg.get("anomaly_sample_fraction", 0.01)
-        if total_rows > 5_000_000 and not config.get("sample_mode"):
+        if not config.get("sample_mode") and not config.get("light_mode"):
             trips = trips.sample(fraction=sample_fraction, seed=42)
             metric.extra["sampled_fraction"] = sample_fraction
 
@@ -146,5 +142,4 @@ def run_anomalies(
         anomalies.coalesce(4).write.mode("overwrite").parquet(
             medallion_uri(config, "lake", "ml", "anomaly_trips")
         )
-        metric.rows_written = anomalies.count()
-        metric.extra["anomaly_rate"] = round(metric.rows_written / max(metric.rows_read, 1), 6)
+        metric.rows_written = max_output

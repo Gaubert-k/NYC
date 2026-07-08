@@ -5,6 +5,7 @@
   "graphTooltip": 1,
   "id": null,
   "links": [],
+  "liveNow": false,
   "panels": [
     {
       "collapsed": false,
@@ -22,7 +23,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "MAE (secondes)",
       "type": "stat",
-      "targets": [{ "expr": "lake_ml_mae_seconds", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "lake_ml_mae_seconds", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -32,7 +33,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Score R2",
       "type": "stat",
-      "targets": [{ "expr": "lake_ml_r2_score", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "lake_ml_r2_score", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -40,15 +41,15 @@
       "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
       "id": 3,
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "title": "Anomalies detectees",
+      "title": "Anomalies detectees (max 500)",
       "type": "stat",
-      "targets": [{ "expr": "lake_anomaly_trips_total", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "lake_anomaly_trips_total", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "collapsed": false,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
       "id": 301,
-      "title": "Geospatial — trajets les plus frequents",
+      "title": "Geospatial — top routes (echantillon 5%)",
       "type": "row"
     },
     {
@@ -59,14 +60,35 @@
       "options": { "displayMode": "gradient", "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Top routes zone → zone",
       "type": "bargauge",
-      "targets": [{ "expr": "lake_top_route", "legendFormat": "{{from_zone}} → {{to_zone}}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "lake_top_route", "instant": true, "legendFormat": "{{from_zone}} → {{to_zone}} (rank {{rank}})", "range": false, "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 12, "x": 0, "y": 19 },
+      "id": 5,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Collections KPI MongoDB",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "mongo_kpi_collections", "instant": true, "range": false, "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 12, "x": 12, "y": 19 },
+      "id": 6,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Collections Lake MongoDB",
+      "type": "stat",
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "mongo_lake_collections", "instant": true, "range": false, "refId": "A" }]
     }
   ],
+  "refresh": "30s",
   "schemaVersion": 39,
   "tags": ["nyc-taxi", "lake", "ml", "geo"],
   "templating": { "list": [] },
-  "time": { "from": "now-30d", "to": "now" },
+  "time": { "from": "now-15m", "to": "now" },
   "title": "03 — Lake (ML, geo, anomalies)",
   "uid": "nyc-lake-analytics",
-  "version": 1
+  "version": 2
 }

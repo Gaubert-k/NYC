@@ -99,15 +99,14 @@ def _normalize_trips(df: DataFrame, vehicle_type: str) -> DataFrame:
     )
 
 
-def _apply_quality_filters(df: DataFrame, config: dict[str, Any]) -> tuple[DataFrame, int]:
+def _apply_quality_filters(df: DataFrame, config: dict[str, Any]) -> DataFrame:
     quality = config.get("quality", {})
     min_loc = quality.get("min_location_id", 1)
     max_loc = quality.get("max_location_id", 265)
     min_fare = quality.get("min_fare_amount", 0.0)
     max_fare = quality.get("max_fare_amount", 500.0)
 
-    before = df.count()
-    filtered = df.filter(
+    return df.filter(
         F.col("pickup_ts").isNotNull()
         & F.col("pu_location_id").isNotNull()
         & F.col("do_location_id").isNotNull()
@@ -120,12 +119,9 @@ def _apply_quality_filters(df: DataFrame, config: dict[str, Any]) -> tuple[DataF
             | ((F.col("fare_amount") >= min_fare) & (F.col("fare_amount") <= max_fare))
         )
     )
-    invalid = before - filtered.count()
-    return filtered, invalid
 
 
-def _deduplicate(df: DataFrame) -> tuple[DataFrame, int]:
-    before = df.count()
+def _deduplicate(df: DataFrame) -> DataFrame:
     window = Window.partitionBy(
         "vehicle_type",
         "pickup_ts",
@@ -139,8 +135,7 @@ def _deduplicate(df: DataFrame) -> tuple[DataFrame, int]:
         .filter(F.col("_rn") == 1)
         .drop("_rn")
     )
-    removed = before - deduped.count()
-    return deduped, removed
+    return deduped
 
 
 def _enrich_zones(df: DataFrame, zones_df: DataFrame) -> DataFrame:
@@ -186,29 +181,22 @@ def transform_silver(
             raw_df = spark.read.parquet(
                 medallion_uri(config, "bronze", "trips", f"vehicle_type={vtype}")
             )
-            metric.rows_read = raw_df.count()
-
             normalized = _normalize_trips(raw_df, vtype)
-            null_rate = (
-                normalized.filter(F.col("pickup_ts").isNull()).count() / max(metric.rows_read, 1)
-            )
-            metric.null_rate = round(null_rate, 4)
 
-            filtered, invalid = _apply_quality_filters(normalized, config)
-            metric.invalid_records = invalid
+            stats = normalized.agg(
+                F.count("*").alias("total"),
+                F.sum(F.when(F.col("pickup_ts").isNull(), 1).otherwise(0)).alias("null_pickup"),
+            ).collect()[0]
+            metric.rows_read = int(stats["total"])
+            metric.null_rate = round(int(stats["null_pickup"]) / max(metric.rows_read, 1), 4)
 
-            deduped, dup_removed = _deduplicate(filtered)
-            metric.duplicates_removed = dup_removed
-
+            filtered = _apply_quality_filters(normalized, config)
+            deduped = _deduplicate(filtered)
             enriched = _enrich_zones(deduped, zones_df)
-            metric.rows_written = enriched.count()
             all_frames.append(enriched)
 
             quality_report[vtype] = {
                 "rows_read": metric.rows_read,
-                "rows_written": metric.rows_written,
-                "invalid_records": invalid,
-                "duplicates_removed": dup_removed,
                 "null_rate": metric.null_rate,
             }
 

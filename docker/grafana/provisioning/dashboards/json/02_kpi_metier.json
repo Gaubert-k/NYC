@@ -22,7 +22,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Tarif moyen Yellow",
       "type": "stat",
-      "targets": [{ "expr": "taxi_avg_fare{vehicle_type=\"yellow\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_avg_fare{vehicle_type=\"yellow\"}", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -32,7 +32,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Tarif moyen Green",
       "type": "stat",
-      "targets": [{ "expr": "taxi_avg_fare{vehicle_type=\"green\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_avg_fare{vehicle_type=\"green\"}", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -42,7 +42,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Tarif moyen FHV",
       "type": "stat",
-      "targets": [{ "expr": "taxi_avg_fare{vehicle_type=\"fhv\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_avg_fare{vehicle_type=\"fhv\"}", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -52,7 +52,7 @@
       "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
       "title": "Tarif moyen FHVHV",
       "type": "stat",
-      "targets": [{ "expr": "taxi_avg_fare{vehicle_type=\"fhvhv\"}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_avg_fare{vehicle_type=\"fhvhv\"}", "instant": true, "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -62,7 +62,7 @@
       "options": { "displayMode": "gradient", "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Volume de courses par type",
       "type": "bargauge",
-      "targets": [{ "expr": "taxi_trips_total", "legendFormat": "{{vehicle_type}}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_trips_total", "instant": true, "legendFormat": "{{vehicle_type}}", "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -72,7 +72,7 @@
       "options": { "displayMode": "gradient", "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
       "title": "Tarif moyen par type",
       "type": "bargauge",
-      "targets": [{ "expr": "taxi_avg_fare", "legendFormat": "{{vehicle_type}}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_avg_fare", "instant": true, "legendFormat": "{{vehicle_type}}", "range": false, "refId": "A" }]
     },
     {
       "collapsed": false,
@@ -109,7 +109,7 @@
       "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true } },
       "title": "Tendance mensuelle (courses)",
       "type": "timeseries",
-      "targets": [{ "expr": "taxi_monthly_trips", "legendFormat": "{{vehicle_type}} — {{year_month}}", "refId": "A" }]
+      "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "editorMode": "code", "expr": "taxi_monthly_trips", "instant": true, "legendFormat": "{{vehicle_type}} — {{year_month}}", "range": false, "refId": "A" }]
     },
     {
       "datasource": { "type": "prometheus", "uid": "prometheus" },
@@ -122,11 +122,12 @@
       "targets": [{ "expr": "taxi_payment_trips", "format": "table", "instant": true, "refId": "A" }]
     }
   ],
+  "refresh": "30s",
   "schemaVersion": 39,
   "tags": ["nyc-taxi", "kpi", "metier"],
   "templating": { "list": [] },
-  "time": { "from": "now-30d", "to": "now" },
+  "time": { "from": "now-15m", "to": "now" },
   "title": "02 — KPIs metier (warehouse)",
   "uid": "nyc-kpi-metier",
-  "version": 1
+  "version": 2
 }

@@ -75,15 +75,17 @@ def run_geospatial(
         if config.get("light_mode"):
             trips = trips.filter(F.col("vehicle_type") == "green")
 
+    lake_cfg = config.get("lake", {})
+    geo_frac = lake_cfg.get("geospatial_sample_fraction", 0.05)
+    if geo_frac < 1.0 and not config.get("light_mode"):
+        trips = trips.sample(fraction=geo_frac, seed=42)
+
     with metrics.track("lake", "geospatial_od_flows") as metric:
-        metric.rows_read = 0 if trips.is_cached else trips.count()
         od = compute_od_flows(trips)
-        od.write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "od_zone_flows"))
-        metric.rows_written = od.count()
+        od.coalesce(8).write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "od_zone_flows"))
 
     with metrics.track("lake", "geospatial_heatmap") as metric:
         heatmap = compute_zone_heatmap(trips)
-        metric.rows_read = metric.rows_written = heatmap.count()
         heatmap.write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "zone_heatmap"))
 
     with metrics.track("lake", "geospatial_top_routes") as metric:
@@ -101,5 +103,4 @@ def run_geospatial(
             .orderBy(F.desc("trip_count"))
             .limit(50)
         )
-        metric.rows_written = routes.count()
         routes.write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "top_routes"))

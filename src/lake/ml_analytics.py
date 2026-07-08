@@ -34,11 +34,6 @@ def run_duration_model(
         trips = trips.sample(fraction=0.001, seed=42).limit(sample_rows)
 
     with metrics.track("lake", "ml_duration_prediction") as metric:
-        metric.rows_read = trips.count()
-        if metric.rows_read < 100:
-            metric.extra["skipped"] = "insufficient_rows"
-            return
-
         pdf = trips.select(
             "vehicle_type",
             "pickup_hour",
@@ -47,6 +42,10 @@ def run_duration_model(
             "trip_distance",
             "trip_duration_sec",
         ).toPandas()
+        if len(pdf) < 100:
+            metric.extra["skipped"] = "insufficient_rows"
+            return
+        metric.rows_read = len(pdf)
 
         report = train_gradient_boosting(pdf)
 
@@ -75,7 +74,6 @@ def run_traffic_correlation(
 
     with metrics.track("lake", "traffic_taxi_correlation") as metric:
         collisions = spark.read.parquet(traffic_uri)
-        metric.rows_read = collisions.count()
 
         coll_by_borough = (
             collisions.filter(F.col("borough").isNotNull())
@@ -104,4 +102,3 @@ def run_traffic_correlation(
         joined.write.mode("overwrite").parquet(
             medallion_uri(config, "lake", "exploration", "traffic_taxi_correlation")
         )
-        metric.rows_written = joined.count()

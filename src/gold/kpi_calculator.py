@@ -21,8 +21,6 @@ def compute_kpis(spark: SparkSession, config: dict[str, Any], metrics: MetricsTr
     weather = _read_weather(spark, config)
 
     with metrics.track("gold", "compute_kpis") as metric:
-        metric.rows_read = trips.count()
-
         kpis: dict[str, DataFrame] = {}
 
         kpis["kpi_trips_by_zone_hour"] = (
@@ -109,10 +107,8 @@ def compute_kpis(spark: SparkSession, config: dict[str, Any], metrics: MetricsTr
             .orderBy("date")
         )
 
-        total_written = 0
         for name, df in kpis.items():
             df.write.mode("overwrite").parquet(medallion_uri(config, "gold", name))
-            total_written += df.count()
 
-        metric.rows_written = total_written
+        metric.rows_written = len(kpis)
         return kpis
