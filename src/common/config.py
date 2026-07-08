@@ -35,6 +35,8 @@ def load_config() -> dict[str, Any]:
     config["max_months_per_type"] = int(os.getenv("MAX_MONTHS_PER_TYPE", "2"))
     sample_month = os.getenv("SAMPLE_MONTH", "").strip()
     config["sample_month"] = sample_month or None
+    sample_year = os.getenv("SAMPLE_YEAR", "").strip()
+    config["sample_year"] = sample_year or None
     config["mongo_uri"] = os.getenv("MONGO_URI", "mongodb://localhost:27017")
     config["mongo_database"] = os.getenv(
         "MONGO_DATABASE", config.get("mongodb", {}).get("database", "nyc_taxi_warehouse")
@@ -67,10 +69,10 @@ def load_config() -> dict[str, Any]:
     elif config["docker_mode"]:
         spark_cfg["master"] = os.getenv("SPARK_MASTER_URL", "spark://spark-master:7077")
         config["mongo_uri"] = os.getenv("MONGO_URI", "mongodb://mongodb:27017")
-        # Valeurs .env locales (4g) incompatibles avec workers Docker (2G)
-        spark_cfg["driver_memory"] = "1g"
-        spark_cfg["executor_memory"] = "1g"
-        spark_cfg["shuffle_partitions"] = int(os.getenv("SPARK_SHUFFLE_PARTITIONS", "8"))
+        spark_cfg["driver_memory"] = os.getenv("SPARK_DRIVER_MEMORY", "1g")
+        spark_cfg["executor_memory"] = os.getenv("SPARK_EXECUTOR_MEMORY", "2g")
+        spark_cfg["executor_cores"] = int(os.getenv("SPARK_EXECUTOR_CORES", "2"))
+        spark_cfg["shuffle_partitions"] = int(os.getenv("SPARK_SHUFFLE_PARTITIONS", "16"))
         config["spark_num_executors"] = int(os.getenv("SPARK_NUM_EXECUTORS", "2"))
     else:
         spark_cfg["driver_memory"] = os.getenv("SPARK_DRIVER_MEMORY", spark_cfg.get("driver_memory", "4g"))

@@ -49,9 +49,15 @@ def run_gold(spark, config, metrics):
 
 
 def run_lake_layer(spark, config, metrics):
+    from pathlib import Path
+
+    from src.gold.kpi_prometheus import export_kpi_prometheus
+
     execute_lake_analytics(spark, config, metrics)
     if load_lake_to_mongo(spark, config, metrics):
         print("Lake analytics charges dans MongoDB")
+        prom_path = Path(config.get("prometheus_export_path", "logs/pipeline_metrics.prom")).parent / "kpi_metrics.prom"
+        export_kpi_prometheus(config["mongo_uri"], config["mongo_database"], prom_path)
     gc.collect()
 
 
@@ -71,12 +77,18 @@ def main():
     )
     parser.add_argument("--sample", action="store_true", help="Activer SAMPLE_MODE")
     parser.add_argument(
+        "--year",
+        metavar="YYYY",
+        default=None,
+        help="Limiter a une annee (ex: 2026)",
+    )
+    parser.add_argument(
         "--month",
         metavar="YYYY-MM",
         default=None,
         help="Limiter a un mois precis (ex: 2026-01)",
     )
-    parser.add_argument("--light", action="store_true", help="Mode léger (~1 Go RAM)")
+    parser.add_argument("--light", action="store_true", help="Mode leger (~1 Go RAM)")
     parser.add_argument("--num-executors", type=int, default=None, help="Nombre d'executors Spark")
     args = parser.parse_args()
 
@@ -87,6 +99,8 @@ def main():
         config["sample_month"] = args.month
         config["sample_mode"] = True
         config["max_months_per_type"] = 1
+    if args.year:
+        config["sample_year"] = args.year
     if args.light:
         config["light_mode"] = True
         config["sample_mode"] = True

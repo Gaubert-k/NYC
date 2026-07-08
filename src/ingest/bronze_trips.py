@@ -21,10 +21,13 @@ def _list_parquet_files(
     sample_mode: bool,
     max_months: int,
     sample_month: str | None = None,
+    sample_year: str | None = None,
 ) -> list[Path]:
     files = sorted((raw_dir / vehicle_type).glob("*.parquet"))
     if sample_month:
         files = [f for f in files if sample_month in f.name]
+    elif sample_year:
+        files = [f for f in files if f"{sample_year}-" in f.name]
     elif sample_mode:
         files = files[:max_months]
     return files
@@ -51,6 +54,7 @@ def ingest_trips(
             config.get("sample_mode", False),
             config.get("max_months_per_type", 2),
             config.get("sample_month"),
+            config.get("sample_year"),
         )
         if not files:
             continue

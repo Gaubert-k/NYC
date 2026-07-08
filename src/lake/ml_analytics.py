@@ -10,13 +10,21 @@ from pyspark.sql import functions as F
 
 from src.common.metrics import MetricsTracker
 from src.common.storage import ensure_local_dir, medallion_exists, medallion_uri
+from src.lake.duration_models import train_gradient_boosting
 from src.transform.silver_cleaner import read_silver_trips
 
 
-def run_duration_model(spark: SparkSession, config: dict[str, Any], metrics: MetricsTracker) -> None:
+def run_duration_model(
+    spark: SparkSession,
+    config: dict[str, Any],
+    metrics: MetricsTracker,
+    trips=None,
+) -> None:
     lake_cfg = config.get("lake", {})
-    sample_rows = lake_cfg.get("ml_sample_rows", 5000)
-    trips = read_silver_trips(spark, config).filter(
+    sample_rows = lake_cfg.get("ml_sample_rows", 10000)
+    if trips is None:
+        trips = read_silver_trips(spark, config)
+    trips = trips.filter(
         F.col("trip_duration_sec").isNotNull() & (F.col("trip_duration_sec") > 0)
     )
 
@@ -32,6 +40,7 @@ def run_duration_model(spark: SparkSession, config: dict[str, Any], metrics: Met
             return
 
         pdf = trips.select(
+            "vehicle_type",
             "pickup_hour",
             "pickup_dow",
             "pu_location_id",
@@ -39,41 +48,28 @@ def run_duration_model(spark: SparkSession, config: dict[str, Any], metrics: Met
             "trip_duration_sec",
         ).toPandas()
 
-        from sklearn.linear_model import LinearRegression
-        from sklearn.metrics import mean_absolute_error, r2_score
-        from sklearn.model_selection import train_test_split
-
-        features = pdf[["pickup_hour", "pickup_dow", "pu_location_id", "trip_distance"]].fillna(0)
-        target = pdf["trip_duration_sec"]
-        x_train, x_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
-
-        model = LinearRegression()
-        model.fit(x_train, y_train)
-        preds = model.predict(x_test)
-
-        report = {
-            "model": "LinearRegression",
-            "target": "trip_duration_sec",
-            "train_rows": len(x_train),
-            "test_rows": len(x_test),
-            "mae_seconds": round(float(mean_absolute_error(y_test, preds)), 2),
-            "r2_score": round(float(r2_score(y_test, preds)), 4),
-            "features": list(features.columns),
-            "coefficients": dict(zip(features.columns, [round(float(c), 4) for c in model.coef_])),
-        }
+        report = train_gradient_boosting(pdf)
 
         out_dir = ensure_local_dir(config, "lake", "ml")
-        (out_dir / "duration_model_metrics.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
-        metric.rows_written = len(x_test)
+        (out_dir / "duration_model_metrics.json").write_text(
+            json.dumps(report, indent=2), encoding="utf-8"
+        )
+        metric.rows_written = report.get("test_rows", 0)
         metric.extra.update(report)
 
 
-def run_traffic_correlation(spark: SparkSession, config: dict[str, Any], metrics: MetricsTracker) -> None:
+def run_traffic_correlation(
+    spark: SparkSession,
+    config: dict[str, Any],
+    metrics: MetricsTracker,
+    trips=None,
+) -> None:
     traffic_uri = medallion_uri(config, "bronze", "external", "traffic_collisions", "records")
     if not medallion_exists(spark, config, "bronze", "external", "traffic_collisions", "records"):
         return
 
-    trips = read_silver_trips(spark, config)
+    if trips is None:
+        trips = read_silver_trips(spark, config)
     if config.get("light_mode"):
         trips = trips.filter(F.col("vehicle_type") == "green")
 

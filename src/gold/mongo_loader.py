@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from pyspark.sql import DataFrame
 from pymongo import MongoClient
 
 from src.common.metrics import MetricsTracker
+from src.gold.kpi_prometheus import export_kpi_prometheus
 
 
 def _df_to_docs(df: DataFrame) -> list[dict[str, Any]]:
@@ -53,6 +55,8 @@ def load_kpis_to_mongo(
 
         metric.rows_written = total_written
 
+    prom_path = Path(config.get("prometheus_export_path", "logs/pipeline_metrics.prom")).parent / "kpi_metrics.prom"
+    export_kpi_prometheus(uri, db_name, prom_path)
     client.close()
     return True
 

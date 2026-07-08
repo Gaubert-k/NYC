@@ -1,0 +1,72 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 300,
+      "title": "Machine Learning — prediction duree de course",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Erreur moyenne absolue du modele GradientBoosting",
+      "fieldConfig": { "defaults": { "decimals": 0, "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 1 },
+      "id": 1,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "MAE (secondes)",
+      "type": "stat",
+      "targets": [{ "expr": "lake_ml_mae_seconds", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "decimals": 3, "max": 1, "min": 0 }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 1 },
+      "id": 2,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Score R2",
+      "type": "stat",
+      "targets": [{ "expr": "lake_ml_r2_score", "refId": "A" }]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 1 },
+      "id": 3,
+      "options": { "colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
+      "title": "Anomalies detectees",
+      "type": "stat",
+      "targets": [{ "expr": "lake_anomaly_trips_total", "refId": "A" }]
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
+      "id": 301,
+      "title": "Geospatial — trajets les plus frequents",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 7 },
+      "id": 4,
+      "options": { "displayMode": "gradient", "legend": { "displayMode": "table", "placement": "right", "showLegend": true }, "orientation": "horizontal", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "showUnfilled": true },
+      "title": "Top routes zone → zone",
+      "type": "bargauge",
+      "targets": [{ "expr": "lake_top_route", "legendFormat": "{{from_zone}} → {{to_zone}}", "refId": "A" }]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["nyc-taxi", "lake", "ml", "geo"],
+  "templating": { "list": [] },
+  "time": { "from": "now-30d", "to": "now" },
+  "title": "03 — Lake (ML, geo, anomalies)",
+  "uid": "nyc-lake-analytics",
+  "version": 1
+}

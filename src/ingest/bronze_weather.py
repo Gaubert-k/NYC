@@ -26,6 +26,24 @@ def _date_range_from_raw(config: dict[str, Any]) -> tuple[str, str]:
         return f"{sample_month}-01", f"{sample_month}-{last_day:02d}"
 
     raw_dir = local_path(config, "raw")
+    sample_year = config.get("sample_year")
+    if sample_year:
+        dates = []
+        for vtype in config.get("vehicle_types", []):
+            for f in (raw_dir / vtype).glob("*.parquet"):
+                if f"{sample_year}-" not in f.name:
+                    continue
+                part = f.stem.split("_")[-1]
+                if len(part) == 7:
+                    dates.append(part + "-01")
+        if dates:
+            dates.sort()
+            year, month = dates[-1][:4], dates[-1][5:7]
+            import calendar
+
+            last_day = calendar.monthrange(int(year), int(month))[1]
+            return dates[0][:8] + "01", f"{year}-{month}-{last_day:02d}"
+
     dates: list[str] = []
     for vtype in config.get("vehicle_types", []):
         for f in (raw_dir / vtype).glob("*.parquet"):

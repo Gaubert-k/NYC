@@ -116,7 +116,6 @@ def main() -> None:
         print(f"\n[MongoDB] {config['mongo_database']} — {len(mongo)} collections")
         print(f"  KPIs warehouse: {len(kpi)} collections, {sum(kpi.values())} docs")
         print(f"  Lake analytics: {len(lake)} collections, {sum(lake.values())} docs")
-        print("  UI: http://localhost:8081 (admin/admin)")
     else:
         print(f"\n[MongoDB] Indisponible ({config['mongo_uri']})")
 
@@ -131,11 +130,17 @@ def main() -> None:
             status = rec.get("status", "?")
             print(f"  [{layer}] {op}: {status}, {rw} rows, {dur} ms")
 
-    print("\n[URLs]")
+    print("\n[Dashboards Grafana] http://localhost:3000 (admin/admin)")
+    print("  Dossier NYC Lakehouse :")
+    print("    01 — Pipeline (technique)   : perf, qualite, volumes")
+    print("    02 — KPIs metier            : tarifs, zones, tendances")
+    print("    03 — Lake                   : ML, geo, anomalies")
+    print("\n[Autres URLs]")
     urls = {
         "Spark Master": "http://localhost:8080",
-        "Grafana": "http://localhost:3000",
+        "Spark History": "http://localhost:18080",
         "Prometheus": "http://localhost:9090",
+        "HDFS": "http://localhost:9870",
     }
     for label, url in urls.items():
         print(f"  {label}: {url}")

@@ -66,17 +66,22 @@ def detect_anomalies(trips: DataFrame, z_threshold: float = 3.0) -> DataFrame:
     )
 
 
-def run_anomalies(spark: SparkSession, config: dict[str, Any], metrics: MetricsTracker) -> None:
+def run_anomalies(
+    spark: SparkSession,
+    config: dict[str, Any],
+    metrics: MetricsTracker,
+    trips: DataFrame | None = None,
+) -> None:
     lake_cfg = config.get("lake", {})
     threshold = lake_cfg.get("anomaly_zscore_threshold", 3.0)
     max_output = lake_cfg.get("anomaly_max_output_rows", 50_000)
-    trips = read_silver_trips(spark, config)
-
-    if config.get("light_mode"):
-        trips = trips.filter(F.col("vehicle_type") == "green")
+    if trips is None:
+        trips = read_silver_trips(spark, config)
+        if config.get("light_mode"):
+            trips = trips.filter(F.col("vehicle_type") == "green")
 
     with metrics.track("lake", "anomaly_detection") as metric:
-        total_rows = trips.count()
+        total_rows = 0 if trips.is_cached else trips.count()
         metric.rows_read = total_rows
 
         # Full run : echantillonner pour eviter shuffle 300M+ lignes / saturation disque

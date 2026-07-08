@@ -64,14 +64,19 @@ def compute_top_routes(trips: DataFrame, top_n: int = 50) -> DataFrame:
     )
 
 
-def run_geospatial(spark: SparkSession, config: dict[str, Any], metrics: MetricsTracker) -> None:
-    trips = read_silver_trips(spark, config)
-
-    if config.get("light_mode"):
-        trips = trips.filter(F.col("vehicle_type") == "green")
+def run_geospatial(
+    spark: SparkSession,
+    config: dict[str, Any],
+    metrics: MetricsTracker,
+    trips: DataFrame | None = None,
+) -> None:
+    if trips is None:
+        trips = read_silver_trips(spark, config)
+        if config.get("light_mode"):
+            trips = trips.filter(F.col("vehicle_type") == "green")
 
     with metrics.track("lake", "geospatial_od_flows") as metric:
-        metric.rows_read = trips.count()
+        metric.rows_read = 0 if trips.is_cached else trips.count()
         od = compute_od_flows(trips)
         od.write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "od_zone_flows"))
         metric.rows_written = od.count()
@@ -82,6 +87,19 @@ def run_geospatial(spark: SparkSession, config: dict[str, Any], metrics: Metrics
         heatmap.write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "zone_heatmap"))
 
     with metrics.track("lake", "geospatial_top_routes") as metric:
-        routes = compute_top_routes(trips)
+        routes = (
+            od.select(
+                "vehicle_type",
+                "pu_zone_name",
+                "pu_borough",
+                "do_zone_name",
+                "do_borough",
+                "trip_count",
+                "avg_fare",
+                "avg_distance",
+            )
+            .orderBy(F.desc("trip_count"))
+            .limit(50)
+        )
         metric.rows_written = routes.count()
         routes.write.mode("overwrite").parquet(medallion_uri(config, "lake", "geospatial", "top_routes"))

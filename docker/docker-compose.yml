@@ -1,15 +1,5 @@
-# NYC Taxi Data Lakehouse — Stack Docker complete
-# Profils disponibles :
-#   mongodb     → MongoDB seul (~500 Mo)
-#   storage     → HDFS (namenode + datanode + init)
-#   spark       → Spark cluster + client PySpark
-#   monitoring  → Prometheus + Grafana + exporters
-#   ui          → Mongo Express + interfaces web
-#   full        → Tout le stack (~10-14 Go RAM)
-#
-# Usage:
-#   docker compose --profile full up -d
-#   docker compose --profile spark --profile storage --profile mongodb up -d
+# NYC Taxi Data Lakehouse — stack Docker (100% Docker, pas de mode local)
+# Usage : make up | make pipeline | make test-2026
 
 x-spark-common: &spark-common
   image: bitnamilegacy/spark:3.5.1
@@ -19,23 +9,26 @@ x-spark-common: &spark-common
     - ..:/app
     - ../data:/data
     - ./spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf:ro
+    - ./hadoop/core-site.xml:/opt/hadoop/etc/hadoop/core-site.xml:ro
+    - ./volumes/spark-events:/spark-events
   environment: &spark-env
     SPARK_USER: spark
     PYTHONPATH: /app
-    MONGO_URI: mongodb://mongodb:27017
+    MONGO_URI: ${MONGO_URI:-mongodb://mongodb:27017}
     MONGO_DATABASE: ${MONGO_DATABASE:-nyc_taxi_warehouse}
     HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop
 
 services:
-  # ─── STOCKAGE HDFS ───────────────────────────────────────────
+  # ─── HDFS ────────────────────────────────────────────────────
   namenode:
-    profiles: [storage, full]
+    profiles: [full]
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: nyc-namenode
     mem_limit: ${NAMENODE_MEM_LIMIT:-1g}
     environment:
       - CLUSTER_NAME=nyc-cluster
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_dfs_replication=1
     volumes:
       - ./volumes/hdfs_namenode:/hadoop/dfs/name
       - ../data:/data
@@ -51,13 +44,14 @@ services:
       retries: 5
 
   datanode:
-    profiles: [storage, full]
+    profiles: [full]
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: nyc-datanode
-    mem_limit: ${DATANODE_MEM_LIMIT:-1g}
+    mem_limit: ${DATANODE_MEM_LIMIT:-2g}
     environment:
       - SERVICE_PRECONDITION=namenode:9870
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_dfs_replication=1
     volumes:
       - ./volumes/hdfs_datanode:/hadoop/dfs/data
       - ../data:/data
@@ -70,7 +64,7 @@ services:
       - nyc-data-net
 
   hdfs-init:
-    profiles: [storage, full]
+    profiles: [full]
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: nyc-hdfs-init
     entrypoint: ["/bin/bash", "/scripts/init-dirs.sh"]
@@ -78,6 +72,7 @@ services:
       - ./hdfs/init-dirs.sh:/scripts/init-dirs.sh:ro
     environment:
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - CORE_CONF_dfs_replication=1
     depends_on:
       namenode:
         condition: service_healthy
@@ -89,7 +84,7 @@ services:
 
   # ─── SPARK CLUSTER ───────────────────────────────────────────
   spark-master:
-    profiles: [spark, full]
+    profiles: [full]
     <<: *spark-common
     container_name: nyc-spark-master
     mem_limit: ${SPARK_MASTER_MEM_LIMIT:-1g}
@@ -106,38 +101,58 @@ services:
       - nyc-data-net
 
   spark-worker-1:
-    profiles: [spark, full]
+    profiles: [full]
     <<: *spark-common
     container_name: nyc-spark-worker-1
-    mem_limit: ${SPARK_WORKER_MEM_LIMIT:-2g}
+    mem_limit: ${SPARK_WORKER_MEM_LIMIT:-3g}
     environment:
       <<: *spark-env
       SPARK_MODE: worker
       SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-3G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-4}
     depends_on:
       - spark-master
 
   spark-worker-2:
-    profiles: [spark, full]
+    profiles: [full]
     <<: *spark-common
     container_name: nyc-spark-worker-2
-    mem_limit: ${SPARK_WORKER_MEM_LIMIT:-2g}
+    mem_limit: ${SPARK_WORKER_MEM_LIMIT:-3g}
     environment:
       <<: *spark-env
       SPARK_MODE: worker
       SPARK_MASTER_URL: spark://spark-master:7077
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-3G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-4}
+    depends_on:
+      - spark-master
+
+  spark-history:
+    profiles: [full]
+    image: bitnamilegacy/spark:3.5.1
+    container_name: nyc-spark-history
+    mem_limit: ${SPARK_HISTORY_MEM_LIMIT:-512m}
+    networks:
+      - nyc-data-net
+    volumes:
+      - ./spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf:ro
+      - ./volumes/spark-events:/spark-events
+    environment:
+      SPARK_USER: spark
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - /opt/bitnami/spark/sbin/start-history-server.sh && tail -f /dev/null
+    ports:
+      - "18080:18080"
     depends_on:
       - spark-master
 
   spark-client:
-    profiles: [spark, full]
+    profiles: [full]
     <<: *spark-common
     container_name: nyc-spark-client
-    mem_limit: 2g
+    mem_limit: ${SPARK_CLIENT_MEM_LIMIT:-2g}
     environment:
       <<: *spark-env
       SPARK_MODE: client
@@ -148,9 +163,9 @@ services:
       - spark-master
       - mongodb
 
-  # ─── WAREHOUSE MongoDB ───────────────────────────────────────
+  # ─── MongoDB ─────────────────────────────────────────────────
   mongodb:
-    profiles: [mongodb, data, spark, full]
+    profiles: [full]
     image: mongo:7
     container_name: nyc-mongodb
     mem_limit: ${MONGODB_MEM_LIMIT:-512m}
@@ -167,7 +182,7 @@ services:
       retries: 5
 
   mongo-express:
-    profiles: [ui, full]
+    profiles: [full]
     image: mongo-express:1.0.2
     container_name: nyc-mongo-express
     mem_limit: 256m
@@ -185,7 +200,7 @@ services:
 
   # ─── MONITORING ──────────────────────────────────────────────
   prometheus:
-    profiles: [monitoring, full]
+    profiles: [full]
     image: prom/prometheus:v2.51.0
     container_name: nyc-prometheus
     mem_limit: ${PROMETHEUS_MEM_LIMIT:-512m}
@@ -198,7 +213,7 @@ services:
       - nyc-data-net
 
   grafana:
-    profiles: [monitoring, full]
+    profiles: [full]
     image: grafana/grafana:10.4.0
     container_name: nyc-grafana
     mem_limit: ${GRAFANA_MEM_LIMIT:-512m}
@@ -216,7 +231,7 @@ services:
       - nyc-data-net
 
   node-exporter:
-    profiles: [monitoring, full]
+    profiles: [full]
     image: prom/node-exporter:v1.7.0
     container_name: nyc-node-exporter
     mem_limit: 128m
@@ -230,7 +245,7 @@ services:
       - nyc-data-net
 
   cadvisor:
-    profiles: [monitoring, full]
+    profiles: [full]
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: nyc-cadvisor
     mem_limit: 256m
@@ -248,6 +263,3 @@ networks:
   nyc-data-net:
     driver: bridge
     name: nyc-data-net
-
-# Volumes nommes supprimes — bind mounts locaux dans docker/volumes/
-# Supprimables directement sur disque Windows (pas de gonflement ext4.vhdx)
