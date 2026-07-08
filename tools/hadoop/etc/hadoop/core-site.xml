@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <property>
+    <name>fs.file.impl</name>
+    <value>org.apache.hadoop.fs.RawLocalFileSystem</value>
+  </property>
+  <property>
+    <name>fs.AbstractFileSystem.file.impl</name>
+    <value>org.apache.hadoop.fs.local.LocalFs</value>
+  </property>
+</configuration>

@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+logs/
+data/bronze/
+data/silver/
+data/gold/
+data/lake/
+.pytest_cache/
+docker/volumes/
+*.prom
+~$*
+data/*

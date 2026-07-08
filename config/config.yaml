@@ -1,0 +1,66 @@
+paths:
+  raw: data/raw
+  reference: data/reference
+  bronze: data/bronze
+  silver: data/silver
+  gold: data/gold
+  lake: data/lake
+  logs: logs
+
+vehicle_types:
+  - yellow
+  - green
+  - fhv
+  - fhvhv
+
+spark:
+  app_name: NYC-Taxi-Lakehouse
+  driver_memory: 4g
+  executor_memory: 4g
+  shuffle_partitions: 8
+  master: local[2]
+
+spark_light:
+  driver_memory: 512m
+  executor_memory: 512m
+  shuffle_partitions: 4
+  master: local[1]
+
+mongodb:
+  database: nyc_taxi_warehouse
+  collections:
+    trips_by_zone_hour: kpi_trips_by_zone_hour
+    trips_by_zone_day: kpi_trips_by_zone_day
+    avg_fare_by_vehicle: kpi_avg_fare_by_vehicle
+    avg_fare_by_hour: kpi_avg_fare_by_hour
+    avg_distance: kpi_avg_distance
+    monthly_trend: kpi_monthly_trend
+    top_pickup_hotspots: kpi_top_pickup_hotspots
+    top_dropoff_hotspots: kpi_top_dropoff_hotspots
+    payment_distribution: kpi_payment_distribution
+    avg_trip_duration: kpi_avg_trip_duration
+    shared_ride_rate: kpi_shared_ride_rate
+    weather_correlation: kpi_weather_correlation
+
+weather:
+  api_url: https://archive-api.open-meteo.com/v1/archive
+  latitude: 40.7128
+  longitude: -74.0060
+  timezone: America/New_York
+
+traffic:
+  api_url: https://data.cityofnewyork.us/resource/h9gi-nnz5.json
+  limit: 3000
+  description: NYC Open Data - Motor Vehicle Collisions (source externe complementaire)
+
+quality:
+  min_location_id: 1
+  max_location_id: 265
+  max_fare_amount: 500.0
+  min_fare_amount: 0.0
+
+lake:
+  anomaly_zscore_threshold: 3.0
+  anomaly_sample_fraction: 0.01
+  anomaly_max_output_rows: 50000
+  ml_sample_rows: 5000

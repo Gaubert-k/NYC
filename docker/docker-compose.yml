@@ -1,0 +1,253 @@
+# NYC Taxi Data Lakehouse — Stack Docker complete
+# Profils disponibles :
+#   mongodb     → MongoDB seul (~500 Mo)
+#   storage     → HDFS (namenode + datanode + init)
+#   spark       → Spark cluster + client PySpark
+#   monitoring  → Prometheus + Grafana + exporters
+#   ui          → Mongo Express + interfaces web
+#   full        → Tout le stack (~10-14 Go RAM)
+#
+# Usage:
+#   docker compose --profile full up -d
+#   docker compose --profile spark --profile storage --profile mongodb up -d
+
+x-spark-common: &spark-common
+  image: bitnamilegacy/spark:3.5.1
+  networks:
+    - nyc-data-net
+  volumes:
+    - ..:/app
+    - ../data:/data
+    - ./spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf:ro
+  environment: &spark-env
+    SPARK_USER: spark
+    PYTHONPATH: /app
+    MONGO_URI: mongodb://mongodb:27017
+    MONGO_DATABASE: ${MONGO_DATABASE:-nyc_taxi_warehouse}
+    HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop
+
+services:
+  # ─── STOCKAGE HDFS ───────────────────────────────────────────
+  namenode:
+    profiles: [storage, full]
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: nyc-namenode
+    mem_limit: ${NAMENODE_MEM_LIMIT:-1g}
+    environment:
+      - CLUSTER_NAME=nyc-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    volumes:
+      - ./volumes/hdfs_namenode:/hadoop/dfs/name
+      - ../data:/data
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    networks:
+      - nyc-data-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9870"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  datanode:
+    profiles: [storage, full]
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: nyc-datanode
+    mem_limit: ${DATANODE_MEM_LIMIT:-1g}
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    volumes:
+      - ./volumes/hdfs_datanode:/hadoop/dfs/data
+      - ../data:/data
+    ports:
+      - "9864:9864"
+    depends_on:
+      namenode:
+        condition: service_healthy
+    networks:
+      - nyc-data-net
+
+  hdfs-init:
+    profiles: [storage, full]
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: nyc-hdfs-init
+    entrypoint: ["/bin/bash", "/scripts/init-dirs.sh"]
+    volumes:
+      - ./hdfs/init-dirs.sh:/scripts/init-dirs.sh:ro
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    depends_on:
+      namenode:
+        condition: service_healthy
+      datanode:
+        condition: service_started
+    networks:
+      - nyc-data-net
+    restart: "no"
+
+  # ─── SPARK CLUSTER ───────────────────────────────────────────
+  spark-master:
+    profiles: [spark, full]
+    <<: *spark-common
+    container_name: nyc-spark-master
+    mem_limit: ${SPARK_MASTER_MEM_LIMIT:-1g}
+    environment:
+      <<: *spark-env
+      SPARK_MODE: master
+      SPARK_MASTER_HOST: spark-master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    networks:
+      - nyc-data-net
+
+  spark-worker-1:
+    profiles: [spark, full]
+    <<: *spark-common
+    container_name: nyc-spark-worker-1
+    mem_limit: ${SPARK_WORKER_MEM_LIMIT:-2g}
+    environment:
+      <<: *spark-env
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+    depends_on:
+      - spark-master
+
+  spark-worker-2:
+    profiles: [spark, full]
+    <<: *spark-common
+    container_name: nyc-spark-worker-2
+    mem_limit: ${SPARK_WORKER_MEM_LIMIT:-2g}
+    environment:
+      <<: *spark-env
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-2G}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+    depends_on:
+      - spark-master
+
+  spark-client:
+    profiles: [spark, full]
+    <<: *spark-common
+    container_name: nyc-spark-client
+    mem_limit: 2g
+    environment:
+      <<: *spark-env
+      SPARK_MODE: client
+      SPARK_MASTER_URL: spark://spark-master:7077
+    working_dir: /app
+    command: ["sleep", "infinity"]
+    depends_on:
+      - spark-master
+      - mongodb
+
+  # ─── WAREHOUSE MongoDB ───────────────────────────────────────
+  mongodb:
+    profiles: [mongodb, data, spark, full]
+    image: mongo:7
+    container_name: nyc-mongodb
+    mem_limit: ${MONGODB_MEM_LIMIT:-512m}
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./volumes/mongo:/data/db
+    networks:
+      - nyc-data-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongo-express:
+    profiles: [ui, full]
+    image: mongo-express:1.0.2
+    container_name: nyc-mongo-express
+    mem_limit: 256m
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb:27017/
+      ME_CONFIG_BASICA_USERNAME: admin
+      ME_CONFIG_BASICA_PASSWORD: admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - nyc-data-net
+
+  # ─── MONITORING ──────────────────────────────────────────────
+  prometheus:
+    profiles: [monitoring, full]
+    image: prom/prometheus:v2.51.0
+    container_name: nyc-prometheus
+    mem_limit: ${PROMETHEUS_MEM_LIMIT:-512m}
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./volumes/prometheus:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - nyc-data-net
+
+  grafana:
+    profiles: [monitoring, full]
+    image: grafana/grafana:10.4.0
+    container_name: nyc-grafana
+    mem_limit: ${GRAFANA_MEM_LIMIT:-512m}
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./volumes/grafana:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - nyc-data-net
+
+  node-exporter:
+    profiles: [monitoring, full]
+    image: prom/node-exporter:v1.7.0
+    container_name: nyc-node-exporter
+    mem_limit: 128m
+    command:
+      - "--collector.textfile.directory=/textfiles"
+    volumes:
+      - ../logs:/textfiles:ro
+    ports:
+      - "9100:9100"
+    networks:
+      - nyc-data-net
+
+  cadvisor:
+    profiles: [monitoring, full]
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: nyc-cadvisor
+    mem_limit: 256m
+    ports:
+      - "8082:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks:
+      - nyc-data-net
+
+networks:
+  nyc-data-net:
+    driver: bridge
+    name: nyc-data-net
+
+# Volumes nommes supprimes — bind mounts locaux dans docker/volumes/
+# Supprimables directement sur disque Windows (pas de gonflement ext4.vhdx)
